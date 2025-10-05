@@ -1,12 +1,16 @@
-  // Even money state: evenMoney[i] === true if player took even money for hand i
-  const [evenMoney, setEvenMoney] = useState([]);
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shuffle, createDeck } from '../utils/deck';
 import { useGame } from '../GameContext';
 import Card from '../components/Card';
 
+
 export default function BlackjackPage() {
+  // Even money state: evenMoney[i] === true if player took even money for hand i
+  const [evenMoney, setEvenMoney] = useState([]);
+
+// ...existing code...
   // For insurance: track if we are in the insurance decision phase
   const [insurancePhase, setInsurancePhase] = useState(false);
   const [insuranceChoices, setInsuranceChoices] = useState([]); // temp storage for insurance decisions
