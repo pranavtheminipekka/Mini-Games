@@ -37,6 +37,10 @@ export default function BlackjackPage() {
   const [animatedDealer, setAnimatedDealer] = useState([]); // For animation
   const [dealerDrawing, setDealerDrawing] = useState(false);
   const [dealing, setDealing] = useState(false); // Animation state
+  // handInProgress: true = hand is being played, false = before first deal or after New Hand is clicked
+  // controlsEnabled: true = can change numHands and click Deal, false = locked out (during or after hand until New Hand)
+  const [handInProgress, setHandInProgress] = useState(false);
+  const [controlsEnabled, setControlsEnabled] = useState(true);
   const [activeHand, setActiveHand] = useState(0);
   // (removed duplicate bets/setBets declaration)
   const [status, setStatus] = useState("");
@@ -73,15 +77,11 @@ export default function BlackjackPage() {
       setStatus('Place a bet for every hand.');
       return;
     }
-    const totalBet = bets.reduce((a, b) => a + b, 0);
-    if (chips < totalBet) {
-      setShowRefill(true);
-      return;
-    }
     let newDeck = [...deck];
     if (newDeck.length < 20) newDeck = shuffle(createDeck(6));
-    spendChips(totalBet);
-    setDealing(true);
+  setDealing(true);
+  setHandInProgress(true);
+  setControlsEnabled(false);
     // Prepare empty hands and dealer
     let newHands = Array(numHands).fill().map(() => []);
     let newDealer = [];
@@ -137,7 +137,9 @@ export default function BlackjackPage() {
     setDeck(newDeck);
     updateCounts([newHands[activeHand][newHands[activeHand].length - 1]], newDeck.length);
     const value = calculateHand(newHands[activeHand]);
+    // Mark bust immediately and move to next hand
     if (value > 21) {
+      setStatus(s => s + ` | Hand ${activeHand + 1} busts`);
       nextHand();
     }
   }
@@ -178,16 +180,29 @@ export default function BlackjackPage() {
   function split() {
     if (gameOver) return;
     const hand = hands[activeHand];
-    if (hand.length === 2 && hand[0].rank === hand[1].rank && chips >= bets[activeHand]) {
+    if (
+      hand.length === 2 &&
+      hand[0].rank === hand[1].rank &&
+      chips >= bets[activeHand]
+    ) {
       spendChips(bets[activeHand]);
+      const newDeck = [...deck];
       const newHands = [...hands];
-      newHands[activeHand] = [hand[0], deck.pop()];
-      newHands.splice(activeHand + 1, 0, [hand[1], deck.pop()]);
+      // Each split hand gets a new card
+      newHands[activeHand] = [hand[0], newDeck.pop()];
+      newHands.splice(activeHand + 1, 0, [hand[1], newDeck.pop()]);
       const newBets = [...bets];
       newBets.splice(activeHand + 1, 0, bets[activeHand]);
+      // Also update insurance and surrendered arrays for new hand
+      const newInsurance = [...insurance];
+      newInsurance.splice(activeHand + 1, 0, null);
+      const newSurrendered = [...surrendered];
+      newSurrendered.splice(activeHand + 1, 0, false);
       setHands(newHands);
       setBets(newBets);
-      setDeck(deck);
+      setDeck(newDeck);
+      setInsurance(newInsurance);
+      setSurrendered(newSurrendered);
     }
   }
 
@@ -260,25 +275,27 @@ export default function BlackjackPage() {
           result += "Insurance lose. ";
         }
       }
+      // Player busts always lose
+      if (playerValue > 21) {
+        profit -= bets[i];
+        result += "Bust!";
+        handProfits.push(profit);
+        results.push(result);
+        totalNet += profit;
+        return;
+      }
       // Player blackjack
       if (playerHasBlackjack && !dealerHasBlackjack) {
-        // Blackjack pays 3:2, bet is already spent
         profit += bets[i] * 1.5;
         result += "Blackjack!";
       } else if (playerHasBlackjack && dealerHasBlackjack) {
-        // Both have blackjack: push
         result += "Push!";
         // profit = 0
       } else if (dealerHasBlackjack && !playerHasBlackjack) {
-        // Dealer blackjack, player loses
         profit -= bets[i];
         result += "Lose!";
-      } else if (playerValue > 21) {
-        // Player busts
-        profit -= bets[i];
-        result += "Bust!";
       } else if (dealerValue > 21) {
-        // Dealer busts, player wins if not bust
+        // Dealer busts, player wins if not bust (already checked above)
         profit += bets[i];
         result += "Win!";
       } else if (playerValue > dealerValue) {
@@ -299,6 +316,7 @@ export default function BlackjackPage() {
     setGameOver(true);
     if (totalNet !== 0) addChips(totalNet);
     setHandProfits(handProfits);
+  setHandInProgress(false);
   }
   // Track per-hand profit for display
   const [handProfits, setHandProfits] = useState([]);
@@ -331,28 +349,49 @@ export default function BlackjackPage() {
       <h2 style={{ textAlign: 'center', letterSpacing: 2, fontWeight: 700 }}>Blackjack</h2>
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 24 }}>
         <label>Number of Hands: </label>
-            <input type="number" min={1} max={7} value={numHands} disabled={hands.length > 0 && !gameOver} onChange={e => {
-            if (hands.length > 0 && !gameOver) return;
+        <input
+          type="number"
+          min={1}
+          max={7}
+          value={numHands}
+          disabled={!controlsEnabled || dealing}
+          onChange={e => {
+            if (!controlsEnabled || dealing) return;
             const n = Number(e.target.value);
             setNumHands(n);
             setBets(b => Array(n).fill(0));
-            }} style={{ width: 40, borderRadius: 6, border: '1px solid #888', padding: 4 }} />
-            <button onClick={startGame} disabled={dealing || (hands.length > 0 && !gameOver)} style={{ marginLeft: 10, background: '#ffd700', color: '#222', fontWeight: 700, border: 'none', borderRadius: 8, padding: '8px 24px', fontSize: 18, boxShadow: '0 2px 8px #0002', opacity: dealing ? 0.5 : 1 }}>Deal</button>
+          }}
+          style={{ width: 40, borderRadius: 6, border: '1px solid #888', padding: 4 }}
+        />
+        <button
+          onClick={startGame}
+          disabled={!controlsEnabled || dealing}
+          style={{ marginLeft: 10, background: '#ffd700', color: '#222', fontWeight: 700, border: 'none', borderRadius: 8, padding: '8px 24px', fontSize: 18, boxShadow: '0 2px 8px #0002', opacity: !controlsEnabled || dealing ? 0.5 : 1 }}
+        >
+          Deal
+        </button>
         {gameOver && (
-          <button onClick={() => {
-            setHands([]);
-            setDealer([]);
-            setAnimatedDealer([]);
-            setDealerDrawing(false);
-            setDealing(false);
-            setActiveHand(0);
-            setStatus("");
-            setGameOver(false);
-            setInsurance(Array(numHands).fill(null));
-            setSurrendered(Array(numHands).fill(false));
-            setHandProfits([]);
-            setBets(Array(numHands).fill(0));
-          }} style={{ marginLeft: 16, background: '#fff', color: '#222', fontWeight: 700, border: '1.5px solid #888', borderRadius: 8, padding: '8px 24px', fontSize: 16 }}>New Hand</button>
+          <button
+            onClick={() => {
+              setHands([]);
+              setDealer([]);
+              setAnimatedDealer([]);
+              setDealerDrawing(false);
+              setDealing(false);
+              setActiveHand(0);
+              setStatus("");
+              setGameOver(false);
+              setInsurance(Array(numHands).fill(null));
+              setSurrendered(Array(numHands).fill(false));
+              setHandProfits([]);
+              setBets(Array(numHands).fill(0));
+              setHandInProgress(false);
+              setControlsEnabled(true);
+            }}
+            style={{ marginLeft: 16, background: '#fff', color: '#222', fontWeight: 700, border: '1.5px solid #888', borderRadius: 8, padding: '8px 24px', fontSize: 16 }}
+          >
+            New Hand
+          </button>
         )}
       </div>
       {showRefill && (
