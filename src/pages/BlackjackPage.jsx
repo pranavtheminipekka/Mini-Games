@@ -228,51 +228,76 @@ export default function BlackjackPage() {
     }
     setDeck(newDeck);
     updateCounts(drawn, newDeck.length);
+
     let results = [];
-    let chipsWon = 0;
     let handProfits = [];
+    let totalNet = 0;
+    const dealerValue = calculateHand(newDealer);
+    const dealerHasBlackjack = isBlackjack(newDealer);
+
     hands.forEach((hand, i) => {
       let profit = 0;
+      let result = "";
+      const playerValue = calculateHand(hand);
+      const playerHasBlackjack = isBlackjack(hand);
+      // Surrender
       if (surrendered[i]) {
-        results.push("Surrendered");
-        profit = bets[i] / 2;
+        profit = -bets[i] / 2;
+        result = "Surrendered";
         handProfits.push(profit);
+        results.push(result);
+        totalNet += profit;
         return;
       }
-      const playerValue = calculateHand(hand);
-      const dealerValue = calculateHand(newDealer);
-      // Insurance payout
+      // Insurance
       if (insurance[i] === 'taken') {
-        if (isBlackjack(newDealer)) {
-          profit += bets[i]; // Insurance pays 2:1 on half bet
-          results.push("Insurance win");
+        if (dealerHasBlackjack) {
+          // Insurance pays 2:1 on half bet
+          profit += bets[i];
+          result += "Insurance win. ";
         } else {
           profit -= bets[i] / 2;
-          results.push("Insurance lose");
+          result += "Insurance lose. ";
         }
       }
-      if (isBlackjack(hand) && !isBlackjack(newDealer)) {
-        results.push("Blackjack!");
-        profit += Math.floor(bets[i] * 1.5) + bets[i];
+      // Player blackjack
+      if (playerHasBlackjack && !dealerHasBlackjack) {
+        // Blackjack pays 3:2, bet is already spent
+        profit += bets[i] * 1.5;
+        result += "Blackjack!";
+      } else if (playerHasBlackjack && dealerHasBlackjack) {
+        // Both have blackjack: push
+        result += "Push!";
+        // profit = 0
+      } else if (dealerHasBlackjack && !playerHasBlackjack) {
+        // Dealer blackjack, player loses
+        profit -= bets[i];
+        result += "Lose!";
       } else if (playerValue > 21) {
-        results.push("Bust!");
+        // Player busts
         profit -= bets[i];
-      } else if (dealerValue > 21 || playerValue > dealerValue) {
-        results.push("Win!");
-        profit += bets[i] * 2;
-      } else if (playerValue < dealerValue) {
-        results.push("Lose!");
-        profit -= bets[i];
-      } else {
-        results.push("Push!");
+        result += "Bust!";
+      } else if (dealerValue > 21) {
+        // Dealer busts, player wins if not bust
         profit += bets[i];
+        result += "Win!";
+      } else if (playerValue > dealerValue) {
+        profit += bets[i];
+        result += "Win!";
+      } else if (playerValue < dealerValue) {
+        profit -= bets[i];
+        result += "Lose!";
+      } else {
+        result += "Push!";
+        // profit = 0
       }
       handProfits.push(profit);
-      chipsWon += Math.max(0, profit); // Only add positive profit to chips
+      results.push(result);
+      totalNet += profit;
     });
     setStatus(results.join(" | "));
     setGameOver(true);
-    addChips(chipsWon);
+    if (totalNet !== 0) addChips(totalNet);
     setHandProfits(handProfits);
   }
   // Track per-hand profit for display
