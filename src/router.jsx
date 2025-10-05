@@ -16,8 +16,10 @@ export default function AppRouter() {
   if (location.pathname.startsWith('/baccarat')) game = 'baccarat';
 
   return (
-    <div style={{ padding: '8px 20px 0 20px', marginRight: showStats ? 270 : 0 }}>
-      <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.1 }}>Mini Game Web App</h1>
+    <div className="app-background" style={{ padding: '8px 20px 0 20px', marginRight: showStats ? 270 : 0, minHeight: '100vh' }}>
+      <header style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 10 }}>
+        <h1 className="casino-title" style={{ margin: 0, fontSize: 44, lineHeight: 1.1, textAlign: 'left' }}>Pranav's Casino</h1>
+      </header>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10, marginTop: 0 }}>
         <nav>
           <Link to="/" style={{ color: location.pathname === '/' ? '#1976d2' : '#90caf9', marginRight: 16, textDecoration: 'none', fontWeight: location.pathname === '/' ? 700 : 500 }}>Home</Link>

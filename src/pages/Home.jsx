@@ -39,8 +39,9 @@ export default function Home() {
   if (currentUser) {
     // Show game selection if logged in
     return (
-      <div style={{ maxWidth: 500, margin: '8vh auto', padding: 32, background: '#fff', borderRadius: 16, boxShadow: '0 4px 32px #0002', textAlign: 'center' }}>
-        <h2 style={{ marginBottom: 24 }}>Welcome, {currentUser}!</h2>
+      <div style={{ maxWidth: 500, margin: '3vh auto 0 auto', padding: 32, background: '#fff', borderRadius: 16, boxShadow: '0 4px 32px #0002', textAlign: 'center' }}>
+        <h1 style={{ marginBottom: 10, marginTop: 0, fontSize: 38, fontWeight: 800, letterSpacing: 2 }}>Pranav's Casino</h1>
+        <div style={{ fontSize: 22, color: '#222', marginBottom: 32, fontWeight: 500 }}>Welcome, {currentUser}</div>
         <button onClick={() => navigate('/blackjack')} style={{ width: '80%', padding: 18, fontSize: 24, borderRadius: 12, background: '#222', color: '#fff', fontWeight: 700, border: 'none', marginBottom: 24 }}>Play Blackjack</button><br />
         <button onClick={() => navigate('/baccarat')} style={{ width: '80%', padding: 18, fontSize: 24, borderRadius: 12, background: '#2e8b57', color: '#fff', fontWeight: 700, border: 'none', marginBottom: 24 }}>Play Baccarat</button><br />
         <button onClick={logout} style={{ marginTop: 16, background: '#fff', color: '#e60026', border: '1.5px solid #e60026', borderRadius: 8, padding: '6px 24px', fontWeight: 600, fontSize: 16 }}>Log Out</button>
@@ -50,8 +51,9 @@ export default function Home() {
 
   // Show login/signup if not logged in
   return (
-    <div style={{ maxWidth: 400, margin: '8vh auto', padding: 32, background: '#fff', borderRadius: 16, boxShadow: '0 4px 32px #0002', textAlign: 'center' }}>
-      <h2 style={{ marginBottom: 24 }}>Welcome to Mini Casino</h2>
+    <div style={{ maxWidth: 400, margin: '3vh auto 0 auto', padding: 32, background: '#fff', borderRadius: 16, boxShadow: '0 4px 32px #0002', textAlign: 'center' }}>
+      <h1 style={{ marginBottom: 10, marginTop: 0, fontSize: 38, fontWeight: 800, letterSpacing: 2 }}>Pranav's Casino</h1>
+      <div style={{ fontSize: 22, color: '#222', marginBottom: 32, fontWeight: 500 }}>Welcome{username ? `, ${username}` : ''}</div>
       <form onSubmit={handleAuth}>
         <input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} style={{ width: '90%', marginBottom: 12, padding: 8, fontSize: 18, borderRadius: 8, border: '1.5px solid #888' }} /><br />
         <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={{ width: '90%', marginBottom: 12, padding: 8, fontSize: 18, borderRadius: 8, border: '1.5px solid #888' }} /><br />

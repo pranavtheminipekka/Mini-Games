@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
   // Clear all bets at once
   function clearAllBets() {
     Object.keys(bets).forEach(type => {
@@ -14,6 +15,8 @@ import { useGame } from '../GameContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function Baccarat() {
+  // Track if a hand is in progress (cards on table or dealing)
+  const [handInProgress, setHandInProgress] = useState(false);
   // Baccarat variant: 'commission' or 'evenMoney'
   const [variant, setVariant] = useState(null); // null until chosen
   function baccaratValue(card) {
@@ -45,6 +48,16 @@ export default function Baccarat() {
   const { chips, spendChips, addChips, baccaratStats, setBaccaratStats } = useGame();
   const navigate = useNavigate();
 
+  // Clear the table for a new hand
+  function newHand() {
+    setPlayer([]);
+    setBanker([]);
+    setResult("");
+    setLastWin(null);
+    setBets({ player: 0, banker: 0, tie: 0, tigerTie: 0, bigTiger: 0, smallTiger: 0 });
+    setDealing(false);
+  }
+
   // Add chip to bet
   function addChipToBet(type) {
     if (chips < selectedChip) {
@@ -69,33 +82,41 @@ export default function Baccarat() {
   // Returns true if banker should draw, given both hands
   function shouldBankerDraw(bankerHand, playerHand, playerDrew, playerThirdCard) {
     const b = handValue(bankerHand);
+    // If player did not draw, banker draws on 0-5, stands on 6-7
+    if (!playerDrew) {
+      if (b <= 5) return true;
+      return false;
+    }
+    // If player drew, use standard table
     if (b <= 2) return true;
-    if (b === 3) return playerDrew ? playerThirdCard.rank !== "8" : true;
-    if (b === 4) return playerDrew ? ["2","3","4","5","6","7"].includes(playerThirdCard.rank) : false;
-    if (b === 5) return playerDrew ? ["4","5","6","7"].includes(playerThirdCard.rank) : false;
-    if (b === 6) return playerDrew ? ["6","7"].includes(playerThirdCard.rank) : false;
+    if (b === 3) return playerThirdCard.rank !== "8";
+    if (b === 4) return ["2","3","4","5","6","7"].includes(playerThirdCard.rank);
+    if (b === 5) return ["4","5","6","7"].includes(playerThirdCard.rank);
+    if (b === 6) return ["6","7"].includes(playerThirdCard.rank);
     return false;
   }
 
   async function deal() {
+    setHandInProgress(true);
     if (!variant) {
       setResult("Please select a baccarat variant.");
       return;
     }
     // Calculate total bet
-    const totalBet = Object.values(bets).filter(Boolean).length * betAmount;
+    const totalBet = Object.values(bets).reduce((sum, v) => sum + v, 0);
     if (totalBet === 0) {
       setResult("Please place at least one bet.");
       return;
     }
-    if (chips < totalBet) {
+    if (chips < 0) { // Should never happen, but just in case
       setShowRefill(true);
       return;
     }
     let newDeck = [...deck];
     if (newDeck.length < 10) newDeck = shuffle(createDeck(6));
-    spendChips(totalBet);
     setDealing(true);
+    setPlayer([]);
+    setBanker([]);
     let playerHand = [];
     let bankerHand = [];
     setPlayer([]);
@@ -142,7 +163,8 @@ export default function Baccarat() {
       }
     }
     setDeck(newDeck);
-    setDealing(false);
+  setDealing(false);
+  // Do not clear player/banker here; require user to click New Hand to clear table and re-enable Deal
     const pVal = handValue(playerHand);
     const bVal = handValue(bankerHand);
   // Special outcomes
@@ -236,6 +258,16 @@ export default function Baccarat() {
 
 
   // Baccarat table layout
+  // If either player or banker has cards, hand is in progress
+  useEffect(() => {
+    // Hand is in progress ONLY if dealing or cards are on table
+    if (dealing || (player.length > 0 || banker.length > 0)) {
+      setHandInProgress(true);
+    } else {
+      setHandInProgress(false);
+    }
+  }, [dealing, player, banker]);
+
   return (
     <div style={{
       background: 'linear-gradient(180deg, #2e8b57 60%, #1b4d3e 100%)',
@@ -244,11 +276,9 @@ export default function Baccarat() {
       width: '80vw',
       minWidth: 900,
       maxWidth: 1200,
-      height: '80vh',
       minHeight: 600,
-      maxHeight: 900,
+      height: 'auto',
       margin: '4vh auto 0 auto',
-      overflow: 'visible',
       boxShadow: '0 4px 32px #0004',
       color: '#fff',
       fontFamily: 'serif',
@@ -283,14 +313,18 @@ export default function Baccarat() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 200 }}>
           <h3 style={{ color: '#00bfff', marginBottom: 6, fontSize: 24, fontWeight: 700, marginLeft: 12 }}>Player Hand ({handValue(player)})</h3>
           <div style={{ display: 'flex', alignItems: 'center', marginLeft: 12, minHeight: 80, maxHeight: 100 }}>
-            {player.length === 0 ? <span style={{ color: '#ccc', fontSize: 18 }}>No cards</span> : player.map((c, i) => <Card key={i} rank={c.rank} suit={c.suit} />)}
+            {player.length === 0
+              ? null
+              : player.map((c, i) => <Card key={i} rank={c.rank} suit={c.suit} />)}
           </div>
         </div>
         <div style={{ flex: 1 }}></div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 200 }}>
           <h3 style={{ color: '#e60026', marginBottom: 6, fontSize: 24, fontWeight: 700, marginRight: 12 }}>Banker Hand ({handValue(banker)})</h3>
           <div style={{ display: 'flex', alignItems: 'center', marginRight: 12, minHeight: 80, maxHeight: 100 }}>
-            {banker.length === 0 ? <span style={{ color: '#ccc', fontSize: 18 }}>No cards</span> : banker.map((c, i) => <Card key={i} rank={c.rank} suit={c.suit} />)}
+            {banker.length === 0
+              ? null
+              : banker.map((c, i) => <Card key={i} rank={c.rank} suit={c.suit} />)}
           </div>
         </div>
       </div>
@@ -357,17 +391,77 @@ export default function Baccarat() {
       {/* Chip tray below bets */}
       <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 18, margin: '24px 0 0 0' }}>
         {chipValues.map((val, i) => (
-          <button key={val} onClick={() => setSelectedChip(val)} style={{
-            width: 54, height: 54, borderRadius: '50%', border: selectedChip === val ? '4px solid #ffd700' : '2px solid #888',
-            background: chipColors[i], color: i === 0 ? '#222' : '#fff', fontWeight: 900, fontSize: val >= 10000 ? 15 : val >= 1000 ? 17 : 20, boxShadow: selectedChip === val ? '0 0 16px #ffd70088' : '0 2px 8px #0002', outline: 'none', cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, overflow: 'hidden', textAlign: 'center', lineHeight: '54px', letterSpacing: val >= 10000 ? '-1px' : 0
-          }}>
+          <button
+            key={val}
+            onClick={() => chips >= val && setSelectedChip(val)}
+            disabled={chips < val}
+            style={{
+              width: 54,
+              height: 54,
+              borderRadius: '50%',
+              border: selectedChip === val ? '4px solid #ffd700' : '2px solid #888',
+              background: chipColors[i],
+              color: i === 0 ? '#222' : '#fff',
+              fontWeight: 900,
+              fontSize: val >= 10000 ? 15 : val >= 1000 ? 17 : 20,
+              boxShadow: selectedChip === val ? '0 0 16px #ffd70088' : '0 2px 8px #0002',
+              outline: 'none',
+              cursor: chips < val ? 'not-allowed' : 'pointer',
+              opacity: chips < val ? 0.5 : 1,
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              overflow: 'hidden',
+              textAlign: 'center',
+              lineHeight: '54px',
+              letterSpacing: val >= 10000 ? '-1px' : 0
+            }}
+          >
             <span style={{ width: '100%', textAlign: 'center', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 900, fontSize: val >= 10000 ? 15 : val >= 1000 ? 17 : 20, lineHeight: '54px' }}>{val >= 1000 ? (val/1000)+'K' : val}</span>
           </button>
         ))}
       </div>
       {/* Deal button at the bottom */}
-      <div style={{ width: '100%', display: 'flex', justifyContent: 'center', margin: '32px 0 0 0' }}>
-        <button onClick={deal} style={{ background: '#ffd700', color: '#222', fontWeight: 700, border: 'none', borderRadius: 12, padding: '12px 36px', fontSize: 22, boxShadow: '0 2px 8px #0002', zIndex: 2 }}>Deal</button>
+      <div style={{ width: '100%', display: 'flex', justifyContent: 'center', margin: '32px 0 0 0', gap: 16 }}>
+        <button
+          onClick={deal}
+          disabled={dealing || player.length > 0 || banker.length > 0}
+          style={{
+            background: '#ffd700',
+            color: '#222',
+            fontWeight: 700,
+            border: 'none',
+            borderRadius: 12,
+            padding: '12px 36px',
+            fontSize: 22,
+            boxShadow: '0 2px 8px #0002',
+            zIndex: 2,
+            opacity: (dealing || player.length > 0 || banker.length > 0) ? 0.5 : 1
+          }}
+        >
+          Deal
+        </button>
+        {handInProgress && (player.length > 0 || banker.length > 0) && (
+          <button
+            onClick={newHand}
+            disabled={dealing}
+            style={{
+              background: '#fff',
+              color: '#222',
+              fontWeight: 700,
+              border: '1.5px solid #888',
+              borderRadius: 8,
+              padding: '12px 36px',
+              fontSize: 18,
+              opacity: dealing ? 0.5 : 1,
+              cursor: dealing ? 'not-allowed' : 'pointer'
+            }}
+          >
+            New Hand
+          </button>
+        )}
       </div>
     </div>
   </React.Fragment>

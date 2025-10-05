@@ -25,9 +25,26 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
+  /* Remove centering for app-wide layout, handled in components */
+h1.casino-title {
+  /* Keep gold style or adjust as needed */
+  margin-top: 12px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+.app-background {
+  max-width: 100vw;
+  box-sizing: border-box;
+}
+
 }
 
 h1 {

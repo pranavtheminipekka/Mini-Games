@@ -11,7 +11,7 @@ export function GameProvider({ children }) {
   // Track current user
   const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('baccarat_current_user') || null);
   const [chips, setChips] = useState(10000);
-  const [showStats, setShowStats] = useState(true);
+  const [showStats, setShowStats] = useState(false);
   const [baccaratStats, setBaccaratStats] = useState({
     history: [],
     player: 0,
