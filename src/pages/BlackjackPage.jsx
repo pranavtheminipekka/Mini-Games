@@ -167,23 +167,39 @@ export default function BlackjackPage() {
 
   function double() {
   if (gameOver || chips < bets[activeHand] || surrendered[activeHand] || insurancePhase) return;
-  // Only allow double if player has enough chips, but do NOT spend chips here; just increase the bet
-  // The chips were already spent when the bet was placed
+  // Deduct the extra wager for doubling down
+  spendChips(bets[activeHand]);
   const newBets = bets.map((b, i) => i === activeHand ? b * 2 : b);
   setBets(newBets);
   hit();
   nextHand();
   }
 
-  function takeInsurance() {
-    if (insurance[activeHand] !== 'offered' || chips < bets[activeHand] / 2) return;
-    spendChips(bets[activeHand] / 2);
-    setInsurance(ins => ins.map((v, i) => i === activeHand ? 'taken' : v));
+  // Insurance for a specific hand (for insurance prompt)
+  function takeInsuranceForHand(i) {
+    if (insurance[i] !== 'offered' || chips < bets[i] / 2) return;
+    spendChips(bets[i] / 2);
+    setInsurance(ins => ins.map((v, j) => j === i ? 'taken' : v));
+    checkInsurancePhaseDone();
   }
 
-  function declineInsurance() {
-    if (insurance[activeHand] !== 'offered') return;
-    setInsurance(ins => ins.map((v, i) => i === activeHand ? 'declined' : v));
+  function declineInsuranceForHand(i) {
+    if (insurance[i] !== 'offered') return;
+    setInsurance(ins => ins.map((v, j) => j === i ? 'declined' : v));
+    checkInsurancePhaseDone();
+  }
+
+  // After each insurance choice, check if all hands have responded
+  function checkInsurancePhaseDone() {
+    setTimeout(() => {
+      setInsurancePhase(ins => {
+        // If all hands are 'taken' or 'declined', exit insurance phase
+        if (insurance.every(v => v !== 'offered')) {
+          return false;
+        }
+        return ins;
+      });
+    }, 100);
   }
 
   function surrender() {
@@ -299,7 +315,7 @@ export default function BlackjackPage() {
           result += "Insurance lose. ";
         }
       }
-      // Player busts always lose (bet already deducted)
+      // Defensive: Player busts always lose (bet already deducted), skip all payout logic
       if (playerValue > 21) {
         profit = -bet;
         result += "Bust!";
@@ -320,6 +336,10 @@ export default function BlackjackPage() {
       } else if (dealerHasBlackjack && !playerHasBlackjack) {
         profit = -bet;
         result += "Lose!";
+      } else if (playerValue > 21) {
+        // Defensive: If for any reason playerValue > 21 here, treat as bust
+        profit = -bet;
+        result += "Bust!";
       } else if (dealerValue > 21) {
         // Dealer busts, player wins if not bust (already checked above)
         payout = bet * 2;
@@ -358,7 +378,8 @@ export default function BlackjackPage() {
   }
 
   return (
-    <div style={{
+  <>
+      <div style={{
       background: 'linear-gradient(180deg, #1e2a38 60%, #0d1a26 100%)',
       borderRadius: 32,
       padding: '2.5vh 2vw 110px 2vw', // extra bottom padding for chip tray
@@ -427,6 +448,48 @@ export default function BlackjackPage() {
             return (gameOver || dealerDrawing || i === 0 ? <Card key={i} rank={c.rank} suit={c.suit} size="small" /> : <span key={i} style={{ width: 48, height: 72, display: 'inline-block', background: '#888', borderRadius: 8, margin: 2 }}></span>);
           })}
         </div>
+        {/* INSURANCE PROMPT INSIDE MAIN BOX */}
+        {insurancePhase && (
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(30,42,56,0.96)',
+            borderRadius: 32,
+            zIndex: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <div style={{
+              background: '#222b',
+              border: '2px solid #ffd700',
+              borderRadius: 16,
+              padding: 32,
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 22,
+              textAlign: 'center',
+              boxShadow: '0 4px 24px #0008',
+              maxWidth: 420
+            }}>
+              <div style={{marginBottom: 16}}>Insurance Offered! Dealer shows an Ace.</div>
+              {hands.map((hand, i) => (
+                insurance[i] === 'offered' && (
+                  <div key={i} style={{marginBottom: 14}}>
+                    Hand {i+1} (Bet: {bets[i]}) — Insurance for {bets[i]/2} chips?
+                    <button style={{marginLeft: 12, marginRight: 6, background:'#ffd700', color:'#222', fontWeight:700, border:'none', borderRadius:6, padding:'6px 18px', fontSize:18}} onClick={() => takeInsuranceForHand(i)}>Take</button>
+                    <button style={{marginLeft: 6, background:'#fff', color:'#222', fontWeight:700, border:'1.5px solid #888', borderRadius:6, padding:'6px 18px', fontSize:18}} onClick={() => declineInsuranceForHand(i)}>Decline</button>
+                  </div>
+                )
+              ))}
+              <div style={{fontSize:16, color:'#ffd700', marginTop:12}}>If dealer has blackjack, insurance pays 2:1.</div>
+            </div>
+          </div>
+        )}
         <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 0, marginTop: 0 }}>
           {/* Only show 7 empty hand boxes if not in a round and not gameOver */}
           {(!gameOver && hands.length === 0) ? (
@@ -504,18 +567,18 @@ export default function BlackjackPage() {
                     {handDealt && hand.map((c, k) => <Card key={k} rank={c.rank} suit={c.suit} size="small" />)}
                   </div>
                   {/* Action buttons only after cards are dealt and not game over */}
-                  {!gameOver && j === activeHand && !surrendered[j] && !insurancePhase && (
+                  {!gameOver && j === activeHand && !surrendered[j] && (
                     <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4, maxHeight: 80, overflowY: 'auto', width: '100%' }}>
                       {hand && hand.length === 2 && (
-                        <button onClick={surrender}>Surrender</button>
+                        <button onClick={surrender} disabled={insurancePhase}>Surrender</button>
                       )}
-                      <button onClick={hit}>Hit</button>
-                      <button onClick={stand}>Stand</button>
+                      <button onClick={hit} disabled={insurancePhase}>Hit</button>
+                      <button onClick={stand} disabled={insurancePhase}>Stand</button>
                       {hand && hand.length === 2 && (
-                        <button onClick={double}>Double</button>
+                        <button onClick={double} disabled={insurancePhase}>Double</button>
                       )}
                       {hand && hand.length === 2 && hand[0].rank === hand[1].rank && (
-                        <button onClick={split}>Split</button>
+                        <button onClick={split} disabled={insurancePhase}>Split</button>
                       )}
                     </div>
                   )}
@@ -569,7 +632,8 @@ export default function BlackjackPage() {
       </div>
         </div>
       </div>
-  <h3 style={{ color: status.startsWith('+') ? '#4caf50' : status.startsWith('-') ? '#e60026' : '#fff', marginTop: 32, fontWeight: 700, fontSize: 28 }}>{status}</h3>
+      <h3 style={{ color: status.startsWith('+') ? '#4caf50' : status.startsWith('-') ? '#e60026' : '#fff', marginTop: 32, fontWeight: 700, fontSize: 28 }}>{status}</h3>
     </div>
+    </>
   );
 }
