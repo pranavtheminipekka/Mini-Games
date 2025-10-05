@@ -338,13 +338,13 @@ export default function Baccarat() {
           <button onClick={() => addChipToBet('player')} onContextMenu={e => { e.preventDefault(); clearBet('player'); }} style={{ background: bets.player ? '#00bfff' : '#fff', color: bets.player ? '#fff' : '#222', border: '2.5px solid #00bfff', borderRadius: 24, width: 180, height: 60, fontSize: 28, fontWeight: 700, boxShadow: bets.player ? '0 0 16px #00bfff88' : 'none', margin: 0, transition: 'all 0.2s', position: 'relative' }}>Player
             {bets.player > 0 && <span style={{ position: 'absolute', right: 16, top: 8, fontSize: 18, color: '#ffd700', fontWeight: 700 }}>{bets.player}</span>}
           </button>
-          {bets.player > 0 && <button onClick={() => clearBet('player')} style={{ position: 'absolute', left: 8, bottom: -32, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 10px', fontWeight: 600, fontSize: 14, zIndex: 3 }}>Return</button>}
+          {bets.player > 0 && !handInProgress && <button onClick={() => clearBet('player')} style={{ position: 'absolute', left: 8, bottom: -32, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 10px', fontWeight: 600, fontSize: 14, zIndex: 3 }}>Return</button>}
         </div>
         <div style={{ position: 'relative' }}>
           <button onClick={() => addChipToBet('banker')} onContextMenu={e => { e.preventDefault(); clearBet('banker'); }} style={{ background: bets.banker ? '#e60026' : '#fff', color: bets.banker ? '#fff' : '#222', border: '2.5px solid #e60026', borderRadius: 24, width: 180, height: 60, fontSize: 28, fontWeight: 700, boxShadow: bets.banker ? '0 0 16px #e6002688' : 'none', margin: 0, transition: 'all 0.2s', position: 'relative' }}>Banker
             {bets.banker > 0 && <span style={{ position: 'absolute', right: 16, top: 8, fontSize: 18, color: '#ffd700', fontWeight: 700 }}>{bets.banker}</span>}
           </button>
-          {bets.banker > 0 && <button onClick={() => clearBet('banker')} style={{ position: 'absolute', left: 8, bottom: -32, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 10px', fontWeight: 600, fontSize: 14, zIndex: 3 }}>Return</button>}
+          {bets.banker > 0 && !handInProgress && <button onClick={() => clearBet('banker')} style={{ position: 'absolute', left: 8, bottom: -32, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 10px', fontWeight: 600, fontSize: 14, zIndex: 3 }}>Return</button>}
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 10 }}>
@@ -352,19 +352,19 @@ export default function Baccarat() {
           <button onClick={() => addChipToBet('tie')} onContextMenu={e => { e.preventDefault(); clearBet('tie'); }} style={{ background: bets.tie ? '#ffd700' : '#fff', color: bets.tie ? '#222' : '#222', border: '2px solid #ffd700', borderRadius: 18, width: 120, height: 48, fontSize: 20, fontWeight: 700, boxShadow: bets.tie ? '0 0 12px #ffd70088' : 'none', margin: 0, transition: 'all 0.2s', position: 'relative' }}>Tie
             {bets.tie > 0 && <span style={{ position: 'absolute', right: 12, top: 6, fontSize: 16, color: '#222', fontWeight: 700 }}>{bets.tie}</span>}
           </button>
-          {bets.tie > 0 && <button onClick={() => clearBet('tie')} style={{ position: 'absolute', left: 4, bottom: -28, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 8px', fontWeight: 600, fontSize: 13, zIndex: 3 }}>Return</button>}
+          {bets.tie > 0 && !handInProgress && <button onClick={() => clearBet('tie')} style={{ position: 'absolute', left: 4, bottom: -28, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 8px', fontWeight: 600, fontSize: 13, zIndex: 3 }}>Return</button>}
         </div>
         <div style={{ position: 'relative' }}>
           <button onClick={() => addChipToBet('tigerTie')} onContextMenu={e => { e.preventDefault(); clearBet('tigerTie'); }} style={{ background: bets.tigerTie ? '#ff9800' : '#fff', color: bets.tigerTie ? '#fff' : '#222', border: '2px solid #ff9800', borderRadius: 18, width: 120, height: 48, fontSize: 18, fontWeight: 700, boxShadow: bets.tigerTie ? '0 0 12px #ff980088' : 'none', margin: 0, transition: 'all 0.2s', position: 'relative' }}>Tiger Tie
             {bets.tigerTie > 0 && <span style={{ position: 'absolute', right: 12, top: 6, fontSize: 16, color: '#fff', fontWeight: 700 }}>{bets.tigerTie}</span>}
           </button>
-          {bets.tigerTie > 0 && <button onClick={() => clearBet('tigerTie')} style={{ position: 'absolute', left: 4, bottom: -28, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 8px', fontWeight: 600, fontSize: 13, zIndex: 3 }}>Return</button>}
+          {bets.tigerTie > 0 && !handInProgress && <button onClick={() => clearBet('tigerTie')} style={{ position: 'absolute', left: 4, bottom: -28, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 8px', fontWeight: 600, fontSize: 13, zIndex: 3 }}>Return</button>}
         </div>
         <div style={{ position: 'relative' }}>
           <button onClick={() => addChipToBet('bigTiger')} onContextMenu={e => { e.preventDefault(); clearBet('bigTiger'); }} style={{ background: bets.bigTiger ? '#8bc34a' : '#fff', color: bets.bigTiger ? '#fff' : '#222', border: '2px solid #8bc34a', borderRadius: 18, width: 120, height: 48, fontSize: 18, fontWeight: 700, boxShadow: bets.bigTiger ? '0 0 12px #8bc34a88' : 'none', margin: 0, transition: 'all 0.2s', position: 'relative' }}>Big Tiger
             {bets.bigTiger > 0 && <span style={{ position: 'absolute', right: 12, top: 6, fontSize: 16, color: '#fff', fontWeight: 700 }}>{bets.bigTiger}</span>}
           </button>
-          {bets.bigTiger > 0 && <button onClick={() => clearBet('bigTiger')} style={{ position: 'absolute', left: 4, bottom: -28, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 8px', fontWeight: 600, fontSize: 13, zIndex: 3 }}>Return</button>}
+          {bets.bigTiger > 0 && !handInProgress && <button onClick={() => clearBet('bigTiger')} style={{ position: 'absolute', left: 4, bottom: -28, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 8px', fontWeight: 600, fontSize: 13, zIndex: 3 }}>Return</button>}
         </div>
         <div style={{ position: 'relative' }}>
           <button onClick={() => addChipToBet('smallTiger')} onContextMenu={e => { e.preventDefault(); clearBet('smallTiger'); }} style={{ background: bets.smallTiger ? '#9c27b0' : '#fff', color: bets.smallTiger ? '#fff' : '#222', border: '2px solid #9c27b0', borderRadius: 18, width: 140, height: 48, fontSize: 17, fontWeight: 700, boxShadow: bets.smallTiger ? '0 0 12px #9c27b088' : 'none', margin: 0, transition: 'all 0.2s', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -385,7 +385,7 @@ export default function Baccarat() {
             }}>Small Tiger</span>
             {bets.smallTiger > 0 && <span style={{ position: 'absolute', right: 12, top: 6, fontSize: 16, color: '#fff', fontWeight: 700 }}>{bets.smallTiger}</span>}
           </button>
-          {bets.smallTiger > 0 && <button onClick={() => clearBet('smallTiger')} style={{ position: 'absolute', left: 4, bottom: -28, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 8px', fontWeight: 600, fontSize: 13, zIndex: 3 }}>Return</button>}
+          {bets.smallTiger > 0 && !handInProgress && <button onClick={() => clearBet('smallTiger')} style={{ position: 'absolute', left: 4, bottom: -28, background: '#fff', color: '#222', border: '1.5px solid #888', borderRadius: 8, padding: '2px 8px', fontWeight: 600, fontSize: 13, zIndex: 3 }}>Return</button>}
         </div>
       </div>
       {/* Chip tray below bets */}

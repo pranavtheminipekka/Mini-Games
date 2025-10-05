@@ -1,3 +1,5 @@
+  // Even money state: evenMoney[i] === true if player took even money for hand i
+  const [evenMoney, setEvenMoney] = useState([]);
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shuffle, createDeck } from '../utils/deck';
@@ -113,14 +115,42 @@ export default function BlackjackPage() {
       setInsurancePhase(true);
       setInsuranceChoices(Array(newHands.length).fill(null));
       setInsurance(Array(newHands.length).fill('offered'));
+      // Set up even money offer for player blackjacks
+      setEvenMoney(Array(newHands.length).fill(false));
       setDealing(false);
       updateCounts([...newDealer, ...newHands.flat()], newDeck.length);
       return;
-    } else {
-      setInsurance(newHands.map(() => null));
-      updateCounts([...newDealer, ...newHands.flat()], newDeck.length);
-      setDealing(false);
     }
+    // If dealer upcard is 10/J/Q/K, check for dealer blackjack immediately
+    if (newDealer[0] && ["10","J","Q","K"].includes(newDealer[0].rank)) {
+      // Peek at dealer's hole card
+      const dealerHasBlackjack = isBlackjack([newDealer[0], newDealer[1]]);
+      if (dealerHasBlackjack) {
+        // Reveal dealer blackjack, end game, push player blackjacks, all others lose
+        setDealer(newDealer);
+        setHands(newHands);
+        setGameOver(true);
+        setDealing(false);
+        setStatus('Dealer has blackjack!');
+        // Payout logic: push for player blackjacks, lose for others
+        let handProfits = [];
+        let totalNet = 0;
+        for (let i = 0; i < newHands.length; i++) {
+          if (isBlackjack(newHands[i])) {
+            handProfits.push(0);
+          } else {
+            handProfits.push(-bets[i]);
+            totalNet -= bets[i];
+          }
+        }
+        setHandProfits(handProfits);
+        if (totalNet !== 0) addChips(totalNet);
+        return;
+      }
+    }
+    setInsurance(newHands.map(() => null));
+    updateCounts([...newDealer, ...newHands.flat()], newDeck.length);
+    setDealing(false);
   }
 
   // Add chip to a hand's bet (before deal)
@@ -171,11 +201,38 @@ export default function BlackjackPage() {
   spendChips(bets[activeHand]);
   const newBets = bets.map((b, i) => i === activeHand ? b * 2 : b);
   setBets(newBets);
-  hit();
-  nextHand();
+  // Double down: hit once, then auto-stand (move to next hand or finish game)
+  const valueBefore = calculateHand(hands[activeHand]);
+  if (valueBefore > 21) {
+    // Already bust, just move to next hand
+    nextHand();
+    return;
+  }
+  const newDeck = [...deck];
+  const newHands = hands.map((h, i) => i === activeHand ? [...h, newDeck.pop()] : h);
+  setHands(newHands);
+  setDeck(newDeck);
+  updateCounts([newHands[activeHand][newHands[activeHand].length - 1]], newDeck.length);
+  const value = calculateHand(newHands[activeHand]);
+  if (value > 21) {
+    setStatus(s => s + ` | Hand ${activeHand + 1} busts`);
+    setTimeout(() => nextHand(), 0);
+  } else {
+    setTimeout(() => nextHand(), 0);
+  }
   }
 
   // Insurance for a specific hand (for insurance prompt)
+  // Even money for a specific hand (for even money prompt)
+  function takeEvenMoneyForHand(i) {
+    if (!isBlackjack(hands[i]) || !dealer[0] || dealer[0].rank !== 'A') return;
+    // Pay 1:1 immediately
+    addChips(bets[i] * 2);
+    setEvenMoney(arr => arr.map((v, j) => j === i ? true : v));
+    // Mark insurance as declined for this hand (can't take both)
+    setInsurance(ins => ins.map((v, j) => j === i ? 'declined' : v));
+    checkInsurancePhaseDone();
+  }
   function takeInsuranceForHand(i) {
     if (insurance[i] !== 'offered' || chips < bets[i] / 2) return;
     spendChips(bets[i] / 2);
@@ -192,13 +249,47 @@ export default function BlackjackPage() {
   // After each insurance choice, check if all hands have responded
   function checkInsurancePhaseDone() {
     setTimeout(() => {
-      setInsurancePhase(ins => {
-        // If all hands are 'taken' or 'declined', exit insurance phase
-        if (insurance.every(v => v !== 'offered')) {
-          return false;
+      // If all hands have responded to insurance/even money, check for dealer blackjack
+      const allInsuranceDone = insurance.every(v => v !== 'offered');
+      const allEvenMoneyDone = !hands.some((h, i) => isBlackjack(h) && dealer[0] && dealer[0].rank === 'A' && !evenMoney[i]);
+      if (allInsuranceDone && allEvenMoneyDone) {
+        setInsurancePhase(false);
+        // Reveal dealer hole card
+        if (dealer[0] && dealer[0].rank === 'A') {
+          const dealerHasBJ = isBlackjack([dealer[0], dealer[1]]);
+          if (dealerHasBJ) {
+            // End game: push for player blackjacks (unless even money taken), lose for others, pay insurance
+            let handProfits = [];
+            let totalNet = 0;
+            for (let i = 0; i < hands.length; i++) {
+              const playerHasBJ = isBlackjack(hands[i]);
+              const bet = bets[i];
+              let profit = 0;
+              // Even money: already paid out, mark as 0
+              if (playerHasBJ && evenMoney[i]) {
+                profit = 0;
+              } else if (playerHasBJ) {
+                profit = 0; // push
+              } else {
+                profit = -bet;
+                totalNet -= bet;
+              }
+              // Insurance
+              if (insurance[i] === 'taken') {
+                profit += bet / 2;
+                totalNet += bet / 2;
+              }
+              handProfits.push(profit);
+            }
+            setDealer([dealer[0], dealer[1]]);
+            setGameOver(true);
+            setStatus('Dealer has blackjack!');
+            setHandProfits(handProfits);
+            if (totalNet !== 0) addChips(totalNet);
+            return;
+          }
         }
-        return ins;
-      });
+      }
     }, 100);
   }
 
@@ -378,6 +469,50 @@ export default function BlackjackPage() {
   }
 
   return (
+  <>
+      {/* EVEN MONEY PROMPT INSIDE MAIN BOX */}
+      {insurancePhase && dealer[0] && dealer[0].rank === 'A' && hands.some((h, i) => isBlackjack(h) && !evenMoney[i]) && (
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(30,42,56,0.96)',
+          borderRadius: 32,
+          zIndex: 30,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: '#222b',
+            border: '2px solid #ffd700',
+            borderRadius: 16,
+            padding: 32,
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: 22,
+            textAlign: 'center',
+            boxShadow: '0 4px 24px #0008',
+            maxWidth: 420
+          }}>
+            <div style={{marginBottom: 16}}>Even Money Offered! Dealer shows an Ace and you have Blackjack.</div>
+            {hands.map((hand, i) => (
+              isBlackjack(hand) && !evenMoney[i] && (
+                <div key={i} style={{marginBottom: 14}}>
+                  Hand {i+1} (Bet: {bets[i]}) — Take even money (1:1 payout)?
+                  <button style={{marginLeft: 12, marginRight: 6, background:'#ffd700', color:'#222', fontWeight:700, border:'none', borderRadius:6, padding:'6px 18px', fontSize:18}} onClick={() => takeEvenMoneyForHand(i)}>Take</button>
+                  <button style={{marginLeft: 6, background:'#fff', color:'#222', fontWeight:700, border:'1.5px solid #888', borderRadius:6, padding:'6px 18px', fontSize:18}} onClick={() => setEvenMoney(arr => arr.map((v, j) => j === i ? false : v))}>Decline</button>
+                </div>
+              )
+            ))}
+            <div style={{fontSize:16, color:'#ffd700', marginTop:12}}>If you take even money, you get paid 1:1 instantly. Otherwise, if dealer has blackjack, it's a push; if not, you get 3:2.</div>
+          </div>
+        </div>
+      )}
+
   <>
       <div style={{
       background: 'linear-gradient(180deg, #1e2a38 60%, #0d1a26 100%)',
@@ -634,6 +769,7 @@ export default function BlackjackPage() {
       </div>
       <h3 style={{ color: status.startsWith('+') ? '#4caf50' : status.startsWith('-') ? '#e60026' : '#fff', marginTop: 32, fontWeight: 700, fontSize: 28 }}>{status}</h3>
     </div>
+    </>
     </>
   );
 }
