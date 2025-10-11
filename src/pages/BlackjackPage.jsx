@@ -9,6 +9,8 @@ import Card from '../components/Card';
 export default function BlackjackPage() {
   // Even money state: evenMoney[i] === true if player took even money for hand i
   const [evenMoney, setEvenMoney] = useState([]);
+  // Track if even money decision has been made: null = not offered, 'offered' = waiting, 'decided' = done
+  const [evenMoneyDecisions, setEvenMoneyDecisions] = useState([]);
 
 // ...existing code...
   // For insurance: track if we are in the insurance decision phase
@@ -121,6 +123,7 @@ export default function BlackjackPage() {
       setInsurance(Array(newHands.length).fill('offered'));
       // Set up even money offer for player blackjacks
       setEvenMoney(Array(newHands.length).fill(false));
+      setEvenMoneyDecisions(Array(newHands.length).fill(null));
       setDealing(false);
       updateCounts([...newDealer, ...newHands.flat()], newDeck.length);
       return;
@@ -137,14 +140,17 @@ export default function BlackjackPage() {
         setDealing(false);
         setStatus('Dealer has blackjack!');
         // Payout logic: push for player blackjacks, lose for others
-        let handProfits = [];
+        let handProfits = Array(7).fill(0);
         let totalNet = 0;
+        const playIndexes = bets.map((b, idx) => b > 0 ? idx : -1).filter(idx => idx !== -1);
         for (let i = 0; i < newHands.length; i++) {
+          const betIndex = playIndexes[i];
+          const bet = bets[betIndex];
           if (isBlackjack(newHands[i])) {
-            handProfits.push(0);
+            handProfits[betIndex] = 0;
           } else {
-            handProfits.push(-bets[i]);
-            totalNet -= bets[i];
+            handProfits[betIndex] = -bet;
+            totalNet -= bet;
           }
         }
         setHandProfits(handProfits);
@@ -153,6 +159,7 @@ export default function BlackjackPage() {
       }
     }
     setInsurance(newHands.map(() => null));
+    setEvenMoneyDecisions(newHands.map(() => null));
     updateCounts([...newDealer, ...newHands.flat()], newDeck.length);
     setDealing(false);
   }
@@ -233,6 +240,7 @@ export default function BlackjackPage() {
     // Pay 1:1 immediately
     addChips(bets[i] * 2);
     setEvenMoney(arr => arr.map((v, j) => j === i ? true : v));
+    setEvenMoneyDecisions(arr => arr.map((v, j) => j === i ? 'decided' : v));
     // Mark insurance as declined for this hand (can't take both)
     setInsurance(ins => ins.map((v, j) => j === i ? 'declined' : v));
     checkInsurancePhaseDone();
@@ -255,7 +263,11 @@ export default function BlackjackPage() {
     setTimeout(() => {
       // If all hands have responded to insurance/even money, check for dealer blackjack
       const allInsuranceDone = insurance.every(v => v !== 'offered');
-      const allEvenMoneyDone = !hands.some((h, i) => isBlackjack(h) && dealer[0] && dealer[0].rank === 'A' && !evenMoney[i]);
+      // Check if all hands that need even money decisions have made them
+      const allEvenMoneyDone = !hands.some((h, i) => 
+        isBlackjack(h) && dealer[0] && dealer[0].rank === 'A' && 
+        evenMoneyDecisions[i] !== 'decided'
+      );
       if (allInsuranceDone && allEvenMoneyDone) {
         setInsurancePhase(false);
         // Reveal dealer hole card
@@ -263,11 +275,13 @@ export default function BlackjackPage() {
           const dealerHasBJ = isBlackjack([dealer[0], dealer[1]]);
           if (dealerHasBJ) {
             // End game: push for player blackjacks (unless even money taken), lose for others, pay insurance
-            let handProfits = [];
+            let handProfits = Array(7).fill(0);
             let totalNet = 0;
+            const playIndexes = bets.map((b, idx) => b > 0 ? idx : -1).filter(idx => idx !== -1);
             for (let i = 0; i < hands.length; i++) {
               const playerHasBJ = isBlackjack(hands[i]);
-              const bet = bets[i];
+              const betIndex = playIndexes[i];
+              const bet = bets[betIndex];
               let profit = 0;
               // Even money: already paid out, mark as 0
               if (playerHasBJ && evenMoney[i]) {
@@ -283,7 +297,7 @@ export default function BlackjackPage() {
                 profit += bet / 2;
                 totalNet += bet / 2;
               }
-              handProfits.push(profit);
+              handProfits[betIndex] = profit;
             }
             setDealer([dealer[0], dealer[1]]);
             setGameOver(true);
@@ -373,10 +387,13 @@ export default function BlackjackPage() {
     updateCounts(drawn, newDeck.length);
 
   let results = [];
-  let handProfits = [];
+  let handProfits = Array(7).fill(0); // Initialize array for all 7 possible hand positions
   let totalNet = 0;
     const dealerValue = calculateHand(newDealer);
     const dealerHasBlackjack = isBlackjack(newDealer);
+    
+    // Get the mapping of hand indices to bet indices
+    const playIndexes = bets.map((b, idx) => b > 0 ? idx : -1).filter(idx => idx !== -1);
 
     for (let i = 0; i < hands.length; i++) {
       let payout = 0;
@@ -385,13 +402,14 @@ export default function BlackjackPage() {
       const hand = hands[i];
       const playerValue = calculateHand(hand);
       const playerHasBlackjack = isBlackjack(hand);
-      const bet = bets[i]; // always use the current bet (handles double down)
+      const betIndex = playIndexes[i]; // Map hand index to actual bet position
+      const bet = bets[betIndex]; // Use the correct bet amount
       // Surrender
       if (surrendered[i]) {
         payout = bet / 2;
         profit = -bet / 2;
         result = "Surrendered";
-        handProfits.push(profit);
+        handProfits[betIndex] = profit;
         results.push(result);
         totalNet += profit;
         // Pay out half the bet for surrender
@@ -410,33 +428,36 @@ export default function BlackjackPage() {
           result += "Insurance lose. ";
         }
       }
-      // Defensive: Player busts always lose (bet already deducted), skip all payout logic
+      // Player busts always lose, regardless of dealer outcome
       if (playerValue > 21) {
         profit = -bet;
         result += "Bust!";
-        handProfits.push(profit);
+        handProfits[betIndex] = profit;
         results.push(result);
         totalNet += profit;
         continue;
       }
-      // Player blackjack
-      if (playerHasBlackjack && !dealerHasBlackjack) {
-        payout = bet * 2.5;
-        profit = bet * 1.5;
-        result += "Blackjack!";
-      } else if (playerHasBlackjack && dealerHasBlackjack) {
+      
+      // Player blackjack vs dealer blackjack
+      if (playerHasBlackjack && dealerHasBlackjack) {
         payout = bet;
         // profit = 0
         result += "Push!";
-      } else if (dealerHasBlackjack && !playerHasBlackjack) {
+      }
+      // Player blackjack, dealer doesn't have blackjack
+      else if (playerHasBlackjack && !dealerHasBlackjack) {
+        payout = bet * 2.5;
+        profit = bet * 1.5;
+        result += "Blackjack!";
+      }
+      // Dealer has blackjack, player doesn't
+      else if (dealerHasBlackjack && !playerHasBlackjack) {
         profit = -bet;
         result += "Lose!";
-      } else if (playerValue > 21) {
-        // Defensive: If for any reason playerValue > 21 here, treat as bust
-        profit = -bet;
-        result += "Bust!";
-      } else if (dealerValue > 21) {
-        // Dealer busts, player wins if not bust (already checked above)
+      }
+      // Neither has blackjack, compare hands
+      else if (dealerValue > 21) {
+        // Dealer busts, player wins (player already confirmed not bust above)
         payout = bet * 2;
         profit = bet;
         result += "Win!";
@@ -452,7 +473,7 @@ export default function BlackjackPage() {
         // profit = 0
         result += "Push!";
       }
-      handProfits.push(profit);
+      handProfits[betIndex] = profit;
       results.push(result);
       totalNet += profit;
       // Pay out only for hands that win or push (bet + profit)
@@ -475,7 +496,7 @@ export default function BlackjackPage() {
   return (
   <>
       {/* EVEN MONEY PROMPT INSIDE MAIN BOX */}
-      {insurancePhase && dealer[0] && dealer[0].rank === 'A' && hands.some((h, i) => isBlackjack(h) && !evenMoney[i]) && (
+      {insurancePhase && dealer[0] && dealer[0].rank === 'A' && hands.some((h, i) => isBlackjack(h) && evenMoneyDecisions[i] !== 'decided') && (
         <div style={{
           position: 'absolute',
           left: 0,
@@ -504,11 +525,15 @@ export default function BlackjackPage() {
           }}>
             <div style={{marginBottom: 16}}>Even Money Offered! Dealer shows an Ace and you have Blackjack.</div>
             {hands.map((hand, i) => (
-              isBlackjack(hand) && !evenMoney[i] && (
+              isBlackjack(hand) && evenMoneyDecisions[i] !== 'decided' && (
                 <div key={i} style={{marginBottom: 14}}>
                   Hand {i+1} (Bet: {bets[i]}) — Take even money (1:1 payout)?
                   <button style={{marginLeft: 12, marginRight: 6, background:'#ffd700', color:'#222', fontWeight:700, border:'none', borderRadius:6, padding:'6px 18px', fontSize:18}} onClick={() => takeEvenMoneyForHand(i)}>Take</button>
-                  <button style={{marginLeft: 6, background:'#fff', color:'#222', fontWeight:700, border:'1.5px solid #888', borderRadius:6, padding:'6px 18px', fontSize:18}} onClick={() => setEvenMoney(arr => arr.map((v, j) => j === i ? false : v))}>Decline</button>
+                  <button style={{marginLeft: 6, background:'#fff', color:'#222', fontWeight:700, border:'1.5px solid #888', borderRadius:6, padding:'6px 18px', fontSize:18}} onClick={() => {
+                    setEvenMoney(arr => arr.map((v, j) => j === i ? false : v));
+                    setEvenMoneyDecisions(arr => arr.map((v, j) => j === i ? 'decided' : v));
+                    checkInsurancePhaseDone();
+                  }}>Decline</button>
                 </div>
               )
             ))}
@@ -560,6 +585,7 @@ export default function BlackjackPage() {
               setGameOver(false);
               setInsurance(Array(NUM_HANDS).fill(null));
               setSurrendered(Array(NUM_HANDS).fill(false));
+              setEvenMoneyDecisions(Array(NUM_HANDS).fill(null));
               setHandProfits([]);
               setBets(Array(NUM_HANDS).fill(0));
               setHandInProgress(false);

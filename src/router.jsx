@@ -7,6 +7,7 @@ import { Baccarat } from './pages';
 import Home from './pages/Home';
 import SelectGame from './pages/SelectGame';
 import BlackjackPage from './pages/BlackjackPage';
+import PokerPage from './pages/PokerPage';
 
 export default function AppRouter() {
   const { chips, showStats, setShowStats } = useGame();
@@ -14,6 +15,7 @@ export default function AppRouter() {
   let game = '';
   if (location.pathname.startsWith('/blackjack')) game = 'blackjack';
   if (location.pathname.startsWith('/baccarat')) game = 'baccarat';
+  if (location.pathname.startsWith('/poker')) game = 'poker';
 
   return (
     <div className="app-background" style={{ padding: '8px 20px 0 20px', marginRight: showStats ? 270 : 0, minHeight: '100vh' }}>
@@ -25,6 +27,7 @@ export default function AppRouter() {
           <Link to="/" style={{ color: location.pathname === '/' ? '#1976d2' : '#90caf9', marginRight: 16, textDecoration: 'none', fontWeight: location.pathname === '/' ? 700 : 500 }}>Home</Link>
           <Link to="/blackjack" style={{ color: location.pathname.startsWith('/blackjack') ? '#1976d2' : '#90caf9', marginRight: 16, textDecoration: 'none', fontWeight: location.pathname.startsWith('/blackjack') ? 700 : 500 }}>Blackjack</Link>
           <Link to="/baccarat" style={{ color: location.pathname.startsWith('/baccarat') ? '#1976d2' : '#90caf9', marginRight: 16, textDecoration: 'none', fontWeight: location.pathname.startsWith('/baccarat') ? 700 : 500 }}>Baccarat</Link>
+          <Link to="/poker" style={{ color: location.pathname.startsWith('/poker') ? '#1976d2' : '#90caf9', marginRight: 16, textDecoration: 'none', fontWeight: location.pathname.startsWith('/poker') ? 700 : 500 }}>Poker</Link>
         </nav>
         <div style={{ marginLeft: 'auto', fontWeight: 'bold' }}>
           Chips: {chips}
@@ -38,6 +41,7 @@ export default function AppRouter() {
         <Route path="/select-game" element={<SelectGame />} />
         <Route path="/blackjack" element={<BlackjackPage />} />
         <Route path="/baccarat" element={<Baccarat />} />
+        <Route path="/poker" element={<PokerPage />} />
       </Routes>
       {game && <StatsSidebar game={game} />}
     </div>

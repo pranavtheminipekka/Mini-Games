@@ -26,6 +26,15 @@ export function GameProvider({ children }) {
     runningCount: 0,
     trueCount: 0,
   });
+  const [pokerStats, setPokerStats] = useState({
+    handsPlayed: 0,
+    handsWon: 0,
+    totalWinnings: 0,
+    biggestPot: 0,
+    vpip: 0, // Voluntarily Put money In Pot
+    pfr: 0, // Pre-Flop Raise
+    aggression: 0,
+  });
   // Track if loaded from storage
   const loadedRef = useRef(false);
 
@@ -41,27 +50,40 @@ export function GameProvider({ children }) {
         history: [], player: 0, banker: 0, tie: 0, naturals: 0, tigerTies: 0, bigTigers: 0, smallTigers: 0
       });
       setBlackjackStats(profile.stats?.blackjackStats ?? { runningCount: 0, trueCount: 0 });
+      setPokerStats(profile.stats?.pokerStats ?? {
+        handsPlayed: 0, handsWon: 0, totalWinnings: 0, biggestPot: 0, vpip: 0, pfr: 0, aggression: 0
+      });
       loadedRef.current = true;
     } else {
       setChips(10000);
       setBaccaratStats({ history: [], player: 0, banker: 0, tie: 0, naturals: 0, tigerTies: 0, bigTigers: 0, smallTigers: 0 });
       setBlackjackStats({ runningCount: 0, trueCount: 0 });
+      setPokerStats({ handsPlayed: 0, handsWon: 0, totalWinnings: 0, biggestPot: 0, vpip: 0, pfr: 0, aggression: 0 });
       loadedRef.current = false;
     }
   }, [localStorage.getItem('baccarat_current_user')]);
 
-  // Save profile on change
+  // Save profile on change (chips)
   useEffect(() => {
     if (!currentUser || !loadedRef.current) return;
     const users = JSON.parse(localStorage.getItem('baccarat_users') || '{}');
     users[currentUser] = users[currentUser] || { password: '', stats: {} };
     users[currentUser].chips = chips;
+    localStorage.setItem('baccarat_users', JSON.stringify(users));
+  }, [chips, currentUser]);
+
+  // Save profile on change (stats)
+  useEffect(() => {
+    if (!currentUser || !loadedRef.current) return;
+    const users = JSON.parse(localStorage.getItem('baccarat_users') || '{}');
+    users[currentUser] = users[currentUser] || { password: '', stats: {} };
     users[currentUser].stats = {
       baccaratStats,
       blackjackStats,
+      pokerStats,
     };
     localStorage.setItem('baccarat_users', JSON.stringify(users));
-  }, [chips, baccaratStats, blackjackStats, currentUser]);
+  }, [baccaratStats, blackjackStats, pokerStats, currentUser]);
 
   function addChips(amount) {
     setChips(c => c + amount);
@@ -78,6 +100,7 @@ export function GameProvider({ children }) {
     setChips(10000);
     setBaccaratStats({ history: [], player: 0, banker: 0, tie: 0, naturals: 0, tigerTies: 0, bigTigers: 0, smallTigers: 0 });
     setBlackjackStats({ runningCount: 0, trueCount: 0 });
+    setPokerStats({ handsPlayed: 0, handsWon: 0, totalWinnings: 0, biggestPot: 0, vpip: 0, pfr: 0, aggression: 0 });
   }
 
   return (
@@ -92,6 +115,8 @@ export function GameProvider({ children }) {
       setBaccaratStats,
       blackjackStats,
       setBlackjackStats,
+      pokerStats,
+      setPokerStats,
       currentUser,
       logout,
     }}>
